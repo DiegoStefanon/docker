@@ -1,0 +1,57 @@
+# test connection to mysql in docker container with python3
+import mysql.connector
+from mysql.connector import connect, Error
+from mysql.connector.constants import ClientFlag
+
+try: 
+
+    #  c string:  mysql://root:{pwd}@172.18.0.1:3309/nop
+    # 172.18.01    gateway   3309   success on code
+    # 172.18.0.2   ip address
+    # 0.0.0.0  3309 
+
+    # define a connection object
+    ''' conn = connect(
+          user = 'root',
+          password = '{pwd}',
+          host = '172.19.0.1',
+          port=3309,
+          use_pure=True,
+          database = 'nop1') '''
+  
+
+    config = {
+        'user': 'root',
+        'password': '{pwd}',
+        'host': '172.19.0.1',
+        'port': '3309',    
+        'ssl_disabled': True
+    }
+
+    cnx = mysql.connector.connect(**config)
+
+    print('OK -- A connection object has been created.')
+
+    cur = cnx.cursor(buffered=True)
+    cur.execute("SHOW STATUS LIKE 'Ssl_cipher'")
+    print(cur.fetchone())
+    cur.close()
+    #cnx.close()
+
+    cur = cnx.cursor(buffered=True)
+    cur.execute("SHOW DATABASES;")
+    result = cur.fetchall()
+    for Database in result:
+        print (Database)
+    
+    cur.close()
+
+    cnx.close()
+   
+    # close the database connection
+    #conn.close()
+ 
+except Error as err:
+    print('error msg: '+ err.msg)
+
+1
