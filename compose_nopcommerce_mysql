@@ -1,0 +1,106 @@
+# docker compose :  nopcommerce, mysql, phpmyadmin
+
+# 172.17.0.1 (the docker-host’s ip-address on Docker running on Linux) 
+# docker compose up -d
+# To Tear Down
+# docker compose down --volumes
+# docker compose stop
+# docker compose ps  list all images running
+# docker network ls  list of networks
+# sudo lsof -i :3306  in caso di conflitti porte vedi uali sono i servizi attivi poi fai il kill: sudo kill <pid> o service docker stop (kill tutti i docker service) 
+# sudo lsof -i -P -n | grep LISTEN   tutti i servisi in ascolto e loro porte 
+
+#  docker inspect nopcommerce-48 | grep Gateway #=> to view container ip address
+# docker inspect mysql-nop   per vedere info ed ip del container  
+
+# mysql -u root -h 172.18.0.1 -p -P 3309   > can connect directly to mysql, per prelevare il corretto ip guarda il gateway col comando: docker inspect mysql-nop  
+
+# nop admin email: admin@yourStore.com
+# SELECT host FROM information_schema.processlist WHERE ID=connection_id(); 
+
+# DB_CONNECTIONSTRING=Server=mysql;Database=nopcommerce;User=nopcommerce;Password={pwd};Port=3306;   
+# Data Source=172.18.0.1:3306;Initial Catalog=nop;Persist Security Info=True;User ID=root;Password={pwd} 
+# Data Source=172.19.0.1;port=3306;Initial Catalog=nop;Persist Security Info=True;User ID=root;Password={pwd} 
+# Server=172.19.0.1;port=3306;Database=nop;Uid=root;Pwd={pwd};
+# Server=db1;Database=nop;User=root;Password={pwd};Port=3306;  
+# # Server=172.19.0.1;port=3306;Database=nop;Uid=root;Pwd={pwd};
+#   server=172.19.0.1;port=3309;uid=root;pwd={pwd};database=nop1 #gateway e porta esposta per connessioni esterne  
+#   server=172.19.0.2;port=3306;uid=root;pwd={pwd};database=nop1 #ip interno e porta interna ok <<< per inizializzare nopcommmerce
+
+# 1) privilegi di scrittura al gruppo root su folder mysql_dbdata 
+# 2) privilegi all'utente del db: nopuser
+#   mysql://root:{pwd}@172.18.0.1:3309/nop  ok
+#   admin@yourstore.com 
+#version: "3.8"
+
+services:
+    mysql-db:
+        container_name: mysql-nop
+        image: mysql:latest
+        #command: --default-authentication-plugin=mysql_native_password
+        volumes:
+            - mysql_dbdata:/var/lib/mysql  # db_data   ./data/mysql
+            #- "/devops/docker/db/script.sh:/docker-entrypoint-initdb.d/script.sh" # crea la directory devops on root per vedere i comandi eseguiti
+        #cap_add: ## le capacità che un container ha 
+            #- ALL
+        restart: always
+        ports:
+            - "3309:3306"
+            #- "127.0.0.1:3308:3306"
+            # extra_hosts:
+            #   - localhost:127.0.0.1   
+        #command: #--default-authentication-plugin=mysql_native_password
+            #- --character-set-server=utf8mb4 
+            #- --collation-server=utf8mb4_unicode_ci
+            #- --default-authentication-plugin=mysql_native_password
+        environment:
+            MYSQL_ROOT_PASSWORD: {pwd}
+            MYSQL_DATABASE: nop1
+            MYSQL_USER: nopuser
+            MYSQL_PASSWORD: {pwd}
+    
+        networks: 
+            - nopsite_net
+        #network_mode: bridge   
+      
+    nopcommerce_web:
+        image: nopcommerceteam/nopcommerce:4.80.0
+        container_name: nopcommerce-48
+        ports:
+            - "8083:80"
+        volumes:
+            - nopcommerce_data:/app
+        depends_on:
+            - mysql-db
+        restart: always
+        stdin_open: true
+        environment:
+          MYSQL_ROOT_PASSWORD: "{pwd}"        
+        networks: 
+            - nopsite_net
+        #network_mode: bridge  
+        
+    phpmyadmin:
+        #container_name: phpyadmin_nop
+        depends_on:
+            - mysql-db
+        image: phpmyadmin:latest
+        restart: always
+        ports:
+            - "8092:80"
+        environment:
+            PMA_HOST: mysql-db
+            MYSQL_ROOT_PASSWORD: {pwd}
+        networks: 
+            - nopsite_net
+        #network_mode: bridge
+
+        
+networks:
+    nopsite_net:
+        #driver: "bridge"
+      
+
+volumes:
+    nopcommerce_data:
+    mysql_dbdata:    
